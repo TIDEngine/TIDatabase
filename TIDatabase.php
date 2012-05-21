@@ -757,7 +757,7 @@ class TIDEDatabase {
 				
 				$values = "(" . $column_values[$key] . ")";
 				
-				$query = "INSERT INTO " . $table_name . " " . $columns . " VALUES " . $values . "";
+				$query = "INSERT INTO " . $table_name . " " . $columns . " VALUES " . $values . " " . $statement . "";
 				
 				$result[] = $this->sql_query($query, 'INSERT DATA');
 			}
@@ -787,8 +787,16 @@ class TIDEDatabase {
 		
 	}
 	
-
-	public  function delete_data($database=false, $table, $alias=false, $statement='', $response=false) {
+	/**
+	 * delete_data()
+	 * 
+	 * @param bool|string $database
+	 * @param string|array $table
+	 * @param bool|string|array $alias
+	 * @param string|array $statement
+	 * @param bool $response
+	 */
+	public function delete_data($database=false, $table, $alias=false, $statement='', $response=false) {
 		
 		$this->set_db($database);
 		
@@ -813,7 +821,7 @@ class TIDEDatabase {
 					}
 				}
 				
-				$query = "DELETE " . $alias_table . "FROM ". $table_name ."  ".$statement[$key] . " ";
+				$query = "DELETE " . $alias_table . "FROM ". $table_name ." ".$statement[$key] . " ";
 				$result[] = $this->sql_query($query, 'DELETE DATA');
 			}
 			
@@ -827,7 +835,7 @@ class TIDEDatabase {
 			
 			}
 			
-			$query = "DELETE " . $aliases_table . "FROM ". $table ."  ".$statement . " ";
+			$query = "DELETE " . $aliases_table . "FROM ". $table ." ".$statement . " ";
 			$result[] = $this->sql_query($query, 'DELETE DATA');
 			
 		}
@@ -839,23 +847,134 @@ class TIDEDatabase {
 		}
 	}
 	
-	public  function deleteRecords($table, $ref, $value) {
+	/**
+	 * update_data()
+	 * 
+	 * @param bool|string $database
+	 * @param string|array $table
+	 * @param string|array $data
+	 * @param string|array $statement
+	 * @param bool $response
+	 */
+	public  function update_data($database=false, $table,  $data, $statement='', $response) {
+		
+		$this->set_db($database);
 	
-		//check if user exist in database
-		if(!$this->selectData("*", $table, " WHERE {$ref} = '{$value}'")){
+		if($is_array($table)){
+			
+			$result = array();
+			
+			foreach($table as $key => $table_name){
+				
+				$query = "UPDATE " . $table_name . " SET ". $data[$key] ." ".$statement[$key] . " ";
+				$result[] = $this->sql_query($query, 'UPDATE DATA');
+				
+			}
+			
+		}else{
+			
+			$query = "UPDATE " . $table . " SET ". $data ." ".$statement . " ";
+			$result = $this->sql_query($query, 'UPDATE DATA');
+			
+		}
+		
+		if($response){
+		
+			return $result;
+		
+		}
+
+	}
+	public  function updateRecords($table, $field, $value, $database_row, $reference_row) {
 	
-			throw new Exception("Data do not exist.");
+	
+	
+	
+		if(is_array($field) && is_array($value)){
+	
+			$query = "UPDATE $table SET ";
+	
+			if(count($field) !== count($value)){
+	
+				throw new Exception("Number of filelds and update values do not match.");
+	
+			}
+	
+			$last = end($value);
+			for($i=0;$i<count($field);$i++){
+	
+				if($i == (count($value)-1 )){
+	
+					$query .= $field[$i] ." = '".$value[$i]."' ";
+	
+				}else{
+	
+					$query .= $field[$i] ." = '".$value[$i]."',";
+	
+				}
+	
+			}
+	
+			$query .= " WHERE $database_row = $reference_row";
+	
+		}elseif(empty($field) && is_array($value) && !is_array($reference_row)){
+	
+			$query = "UPDATE $table SET ";
+	
+			$last_val  = array_keys($value);
+			$last = end($last_val);
+			foreach($value as $key=>$val){
+					
+				if($key == $last){
+	
+					$query .= $key ." = '".$val."' ";
+	
+				}else{
+	
+					$query .= $key ." = '".$val."', ";
+	
+				}
+					
+			}
+	
+			$query .= " WHERE $database_row = '$reference_row'";
+	
+		}elseif(is_array($reference_row)){
+	
+			$query = array();
+	
+			for ($i = 0; $i < count($reference_row); $i++) {
+	
+	
+				$query[$i] = "UPDATE $table SET  {$field} = {$value[$i]} WHERE {$database_row} = '{$reference_row[$i]}'";
+	
+			}
+	
+	
+			return $query ;
 	
 		}else{
 	
-			// if user do not exist trow exception exist else delete it from database
+			$query = "UPDATE $table SET ";
+			$query .= "$field = '$value' WHERE $database_row = $reference_row";
 	
-	
-			$query = "DELETE  FROM ". $table ." WHERE ". $ref ." = '". $value ."'";
-	
-			$this->sql_query($query, 'DELETE DATA');
 	
 		}
+		//	echo $query;
+		$this->sql_query($query, 'UPDATE DATA');
+	
+		//return $query;
+		//		if(!is_array($query)){
+		//			$this->sql_query($query, 'UPDATE DATA');
+		//		}else{
+		//			print_r($query);
+		//			for ($i = 0; $i < count($query); $i++) {
+		//				$this->sql_query($query[$i], 'UPDATE DATA');
+		//			}
+		//
+		//		}
+	
+	
 	}
 	
 	
@@ -944,126 +1063,6 @@ return $value = "`$value`";
 
 
 
-/**
-# updateData - update data array to table
-*/
-public  function updateData($updateData, $database='') {
-if(!empty($database)){
-		
-		 $this->dbname = $database;
-		 mysql_select_db($this->dbname, $this->connection);
-		 
-	}
-	
-	$tablesNamesList = $this->showTables_Fields($this->dbname);
-
-	
-	foreach($updateData as $table=>$data){
-		
-		if(in_array($data[0], $tablesNamesList)){
-
-				$query = "UPDATE ".$data[0]."  ".$data[1]." ".$data[2]."";
-				$this->sql_query($query, 'UPDATE DATA');
-				
-				if ($this->affected_rows == 0) {
-					
-					$this->errorMessage("Table ".$data[0]." - update failed");
-				}
-
-		}
-	}
-}
-	public  function updateRecords($table, $field, $value, $database_row, $reference_row) {
-
-
-
-
-		if(is_array($field) && is_array($value)){
-				
-			$query = "UPDATE $table SET ";
-				
-			if(count($field) !== count($value)){
-
-				throw new Exception("Number of filelds and update values do not match.");
-
-			}
-				
-			$last = end($value);
-			for($i=0;$i<count($field);$i++){
-
-				if($i == (count($value)-1 )){
-
-					$query .= $field[$i] ." = '".$value[$i]."' ";
-
-				}else{
-						
-					$query .= $field[$i] ." = '".$value[$i]."',";
-
-				}
-
-			}
-
-			$query .= " WHERE $database_row = $reference_row";
-
-		}elseif(empty($field) && is_array($value) && !is_array($reference_row)){
-				
-			$query = "UPDATE $table SET ";
-				
-			$last_val  = array_keys($value);
-			$last = end($last_val);
-			foreach($value as $key=>$val){
-					
-				if($key == $last){
-
-					$query .= $key ." = '".$val."' ";
-						
-				}else{
-						
-					$query .= $key ." = '".$val."', ";
-						
-				}
-					
-			}
-
-			 $query .= " WHERE $database_row = '$reference_row'";
-
-		}elseif(is_array($reference_row)){
-				
-			$query = array();
-				
-			for ($i = 0; $i < count($reference_row); $i++) {
-
-
-				$query[$i] = "UPDATE $table SET  {$field} = {$value[$i]} WHERE {$database_row} = '{$reference_row[$i]}'";
-
-			}
-				
-				
-			return $query ;
-				
-		}else{
-				
-			$query = "UPDATE $table SET ";
-			$query .= "$field = '$value' WHERE $database_row = $reference_row";
-
-				
-		}
-	//	echo $query;
-		$this->sql_query($query, 'UPDATE DATA');
-		
-		//return $query;
-		//		if(!is_array($query)){
-		//			$this->sql_query($query, 'UPDATE DATA');
-		//		}else{
-		//			print_r($query);
-		//			for ($i = 0; $i < count($query); $i++) {
-		//				$this->sql_query($query[$i], 'UPDATE DATA');
-		//			}
-		//
-		//		}
-
-
-	}
 
 public  function alterData($tableData,  $database='') {
 if(!empty($database)){
