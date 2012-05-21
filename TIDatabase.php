@@ -26,7 +26,7 @@ class TIDEDatabase {
 	 * @param string $persist_connection
 	 * @throws Exception 
 	 */
-	public function __construct($server, $user, $password, $persist_connection=false){
+	public function __construct($server, $user, $password, $database=false, $persist_connection=false){
 		
 		if(!$server){
 			throw new Exception("Server is not defined.");
@@ -41,6 +41,13 @@ class TIDEDatabase {
 		$this->server = $server;
 		$this->user = $user;
 		$this->password = $password;
+		
+		if($database){
+			
+			$this->database = $database;
+			
+		}
+		
 		$this->persist_connection = $persist_connection;
 		
 		return $this->server_connection();
@@ -186,20 +193,11 @@ class TIDEDatabase {
 			$result = true;
 			
 		}
-		
-		if($result){
+
+		if($response){
 			
-			if($response){
-				
-				return $response;
-			}
-			
-		}else{
-			
-			throw new Exception("Database ". $this->database ." do not exists on server " . $this->server ."");
-			exit();
+			return $result;
 		}
-	
 	
 	}
 	
@@ -227,7 +225,7 @@ class TIDEDatabase {
 	 * @param bool $response
 	 */
 	
-	public function create_db($database, $settings=false, $drop=true, $response=false) {
+	public function create_db($database=false, $settings=false, $drop=true, $response=true) {
 		
 		$this->set_db($database);
 		
@@ -243,7 +241,7 @@ class TIDEDatabase {
 	
 		}
 	
-		$query = "CREATE DATABASE IF NOT EXISTS " . $database . " " . $settings . "";
+		$query = "CREATE DATABASE IF NOT EXISTS " . $this->database . " " . $settings . "";
 	
 		$result = $this->sql_query($query, 'CREATE DATABASE');
 		
@@ -261,11 +259,11 @@ class TIDEDatabase {
 	 * @param string $database
 	 * @param bool $response
 	 */
-	public function drop_db($database, $response=true) { 
+	public function drop_db($database=false, $response=true) { 
 		
 		$this->set_db($database);
 		
-		$query = "DROP DATABASE IF EXISTS ". $database ."";
+		$query = "DROP DATABASE IF EXISTS " . $this->database  ."";
 	
 		$result = $this->sql_query($query, 'DROP DATABASE');
 		
@@ -283,7 +281,7 @@ class TIDEDatabase {
 	 * @param string|array $table
 	 * @param bool $drop
 	 */
-	public function create_table($database=false, $table, $table_fields, $response=true, $drop=false) {
+	public function create_table($database=false, $table, $table_fields=false, $statement=false, $drop=false, $response=true) {
 	
 		$this->set_db($database);
 	
@@ -297,10 +295,27 @@ class TIDEDatabase {
 					
 				if($drop){
 	
-					$this->drop_db($table_name, 'TABLE');
+					$this->drop_db(false, $table_name);
+					
 				}
-	
-				$query_table = "CREATE TABLE ". $table_name ." (" . $table_fields[$key] . ")";
+				
+				$fields = '';
+				
+				if($table_fields){
+						
+					$fields = " (" . $table_fields[$key] . ")";
+				
+				}
+				
+				$q_statement = '';
+				
+				if($statement){
+					
+					$q_statement = $statement;
+				
+				}
+				
+				$query_table = "CREATE TABLE ". $table_name  . $fields . $q_statement . "";
 				$result[] = $this->sql_query($query_1, 'CREATE TABLE');
 
 			}
@@ -313,7 +328,22 @@ class TIDEDatabase {
 				$this->drop_db($table, 'TABLE');
 			}
 			
-			$query_table = "CREATE TABLE ". $table ." (" . $table_fields. ")";
+			$fields = '';
+			
+			if($table_fields){
+					
+				$fields = " (" . $table_fields. ")";
+			
+			}
+			
+			$q_statement = '';
+			
+			if($statement){
+					
+				$q_statement = $statement;
+			
+			}
+			$query_table = "CREATE TABLE ". $table . $fields . $q_statement . "";
 			$result[] = $this->sql_query($query_1, 'CREATE TABLE');
 	
 		}
@@ -382,6 +412,50 @@ class TIDEDatabase {
 		
 	}
 	
+	/**
+	 * empty_table()
+	 * 
+	 * @param string|bool $database
+	 * @param string|array $table
+	 * @param bool $preserve_auto_increment
+	 * @param bool $response
+	 */
+	public function empty_table($database=false, $table, $preserve_auto_increment=false, $response=true){
+		
+
+		$this->set_db($database);
+		
+		$command = "TRUNCATE TABLE ";
+			
+		if($preserve_auto_increment){
+		
+			$command = "DELETE FROM ";
+		}
+		
+		if(is_array($table)){
+			
+			$result = array();
+			
+			foreach($table as $key=>$table_name){
+				
+				$query = "" . $command."" . $table_name . "";
+				$result[] = $this->sql_query($query, 'EMPTY TABLE DATA');
+				
+			}
+			
+		}else{
+			
+			$query =  "" . $command."" . $table . "";
+			$result = $this->sql_query($query, 'EMPTY TABLE DATA');
+		}
+		
+		if($response){
+		
+			return $result;
+		
+		}
+		
+	}
 	/**
 	 * drop_table()
 	 * 
@@ -728,66 +802,6 @@ class TIDEDatabase {
 	}
 	
 	/**
-	 * insert_data()
-	 * 
-	 * @param string|bool $database
-	 * @param string|array $table
-	 * @param string|array|boool $table_columns
-	 * @param string|array $column_values
-	 * @param string|array $statement
-	 * @param bool $response
-	 */
-	public  function insert_data($database=false, $table, $table_columns=false, $column_values, $statement=false, $response=true) {
-		
-		$this->set_db($database);
-	
-		if(is_array($table)){
-				
-			$result = array();
-			
-			foreach($table as $key => $table_name){
-				
-				$columns = '';
-				
-				if($table_columns){
-					
-					$columns = "(" . $table_columns[$key] . ")";
-				
-				}
-				
-				$values = "(" . $column_values[$key] . ")";
-				
-				$query = "INSERT INTO " . $table_name . " " . $columns . " VALUES " . $values . " " . $statement . "";
-				
-				$result[] = $this->sql_query($query, 'INSERT DATA');
-			}
-		}else{
-			
-			$columns = '';
-			
-			if($table_columns){
-					
-				$columns = "(" . $table_columns . ")";
-			
-			}
-			
-			$values = "(" . $column_values . ")";
-			
-			$query = "INSERT INTO " . $table . " " . $columns . " VALUES " . $values . "";
-			
-			$result  = $this->sql_query($query, 'INSERT DATA');
-			
-		}	
-		
-		if($response){
-		
-			return $result;
-		
-		}
-		
-	}
-	
-	/**
 	 * delete_data()
 	 * 
 	 * @param bool|string $database
@@ -796,7 +810,7 @@ class TIDEDatabase {
 	 * @param string|array $statement
 	 * @param bool $response
 	 */
-	public function delete_data($database=false, $table, $alias=false, $statement='', $response=false) {
+	public function delete_data($database=false, $table, $alias=false, $statement='', $response=true) {
 		
 		$this->set_db($database);
 		
@@ -856,7 +870,7 @@ class TIDEDatabase {
 	 * @param string|array $statement
 	 * @param bool $response
 	 */
-	public  function update_data($database=false, $table,  $data, $statement='', $response) {
+	public function update_data($database=false, $table,  $data, $statement='', $response=true) {
 		
 		$this->set_db($database);
 	
@@ -885,99 +899,120 @@ class TIDEDatabase {
 		}
 
 	}
-	public  function updateRecords($table, $field, $value, $database_row, $reference_row) {
 	
+	/**
+	 * alter_table()
+	 * 
+	 * @param bool|string $database
+	 * @param string|array $table
+	 * @param string|array $statement
+	 * @param bool $response
+	 */
+	public  function alter_table($database=false,  $table, $statement, $response=true) {
+		
+		$this->set_db($database);
 	
-	
-	
-		if(is_array($field) && is_array($value)){
-	
-			$query = "UPDATE $table SET ";
-	
-			if(count($field) !== count($value)){
-	
-				throw new Exception("Number of filelds and update values do not match.");
-	
+		if($is_array($table)){
+			
+			$result = array();
+			
+			foreach($table as $key => $table_name){
+				
+				$query = "ALTER TABLE " . $table_name . " " . $statement[$key] ."";
+				$result[] = $this->sql_query($query, 'ALTER DATA');
+			
 			}
-	
-			$last = end($value);
-			for($i=0;$i<count($field);$i++){
-	
-				if($i == (count($value)-1 )){
-	
-					$query .= $field[$i] ." = '".$value[$i]."' ";
-	
-				}else{
-	
-					$query .= $field[$i] ." = '".$value[$i]."',";
-	
-				}
-	
-			}
-	
-			$query .= " WHERE $database_row = $reference_row";
-	
-		}elseif(empty($field) && is_array($value) && !is_array($reference_row)){
-	
-			$query = "UPDATE $table SET ";
-	
-			$last_val  = array_keys($value);
-			$last = end($last_val);
-			foreach($value as $key=>$val){
-					
-				if($key == $last){
-	
-					$query .= $key ." = '".$val."' ";
-	
-				}else{
-	
-					$query .= $key ." = '".$val."', ";
-	
-				}
-					
-			}
-	
-			$query .= " WHERE $database_row = '$reference_row'";
-	
-		}elseif(is_array($reference_row)){
-	
-			$query = array();
-	
-			for ($i = 0; $i < count($reference_row); $i++) {
-	
-	
-				$query[$i] = "UPDATE $table SET  {$field} = {$value[$i]} WHERE {$database_row} = '{$reference_row[$i]}'";
-	
-			}
-	
-	
-			return $query ;
-	
+			
 		}else{
-	
-			$query = "UPDATE $table SET ";
-			$query .= "$field = '$value' WHERE $database_row = $reference_row";
-	
-	
+			
+			$query = "ALTER TABLE " . $table . " " . $statement ."";
+			$result[] = $this->sql_query($query, 'ALTER DATA');
+			
 		}
-		//	echo $query;
-		$this->sql_query($query, 'UPDATE DATA');
-	
-		//return $query;
-		//		if(!is_array($query)){
-		//			$this->sql_query($query, 'UPDATE DATA');
-		//		}else{
-		//			print_r($query);
-		//			for ($i = 0; $i < count($query); $i++) {
-		//				$this->sql_query($query[$i], 'UPDATE DATA');
-		//			}
-		//
-		//		}
-	
-	
+		
+		if($response){
+		
+			return $result;
+		
+		}
+
+	}
+
+	/**
+	 * create_index()
+	 * 
+	 * @param bool|string $database
+	 * @param string|array $table
+	 * @param string|array $index
+	 * @param unknown_type $columns
+	 * @param unknown_type $response
+	 */
+	public  function create_index($database=false, $table, $index, $columns, $response=true) {
+		
+		$this->set_db($database);
+		
+		if($is_array($table)){
+				
+			$result = array();
+				
+			foreach($table as $key => $table_name){
+				//CREATE UNIQUE INDEX index_name ON table_name ( column1, column2,...);
+				
+				$query = "CREATE UNIQUE INDEX " . $index . " ON " . $table_name . " (" . $columns[$key] .")";
+				$result[] = $this->sql_query($query, 'CREATE INDEX');
+					
+			}
+				
+		}else{
+			
+			$query = "CREATE UNIQUE INDEX " . $index . " ON " . $table . " (" . $columns .")";
+			$result = $this->sql_query($query, 'CREATE INDEX');
+		
+				
+		}
+		
+		if($response){
+		
+			return $result;
+		
+		}
+		
 	}
 	
-	
+	/**
+	 * clone_table()
+	 * 
+	 * @param bool|string $database
+	 * @param string $table
+	 * @param string $new_table
+	 * @param bool $response
+	 * @throws Exception
+	 */
+	public function clone_table($database=false, $table, $new_table, $response=true) {
+		
+		$this->set_db($database);
+		
+		
+		$check = $this->create_table(false, $new_table, false, " LIKE ". $table ."");
+		
+		if(!$check){
+			
+			throw new Exception("Table could not be created.");
+			exit();
+			
+		}
+		
+		$query = "INSERT INTO " . $new_table ." SELECT * FROM " . $table ."";
+		$result = $this->sql_query($query, 'CREATE INDEX');
+		
+			
+		if($response){
+		
+			return $result;
+		
+		}
+		
+	}
 	public function rename_db($old_db_name, $new_db_name){
 		
 // 		$tables = array();
@@ -1064,27 +1099,6 @@ return $value = "`$value`";
 
 
 
-public  function alterData($tableData,  $database='') {
-if(!empty($database)){
-		
-		 $this->dbname = $database;
-		 mysql_select_db($this->dbname, $this->connection);
-		 
-	}
-
-	$tablesNamesList = $this->showTables_Fields($this->dbname);
-	
-		foreach($tableData as $table=>$data){
-			
-			if(in_array($data[0], $tablesNamesList)){
-
-				$query = "ALTER TABLE ".$data[0]." ".$data[1]."";
-					$this->sql_query($query, 'ALTER DATA');
-
-				
-			}
-		}
-   }
 
 public  function queryFile($externalFile, $localCopy=false, $database='') {
 if(!empty($database)){
@@ -1330,6 +1344,8 @@ if($match == 0){
 
 	}
 
+	
+		
 public function showData($queryString,  $database='') {
 if(!empty($database)){
 		
