@@ -727,6 +727,68 @@ class TIDEDatabase {
 	
 	}
 	
+	/**
+	 * insert_data()
+	 * 
+	 * @param string|bool $database
+	 * @param string|array $table
+	 * @param string|array|boool $table_columns
+	 * @param string|array $column_values
+	 * @param string|array $statement
+	 * @param bool $response
+	 */
+	public  function insert_data($database=false, $table, $table_columns=false, $column_values, $statement=false, $response=true) {
+		
+		$this->set_db($database);
+		//INSERT INTO table_name VALUES (value1, value2, value3,...) 
+		//INSERT INTO table_name (column1, column2, column3,...) VALUES (value1, value2, value3,...) 
+		
+		if(is_array($table)){
+				
+			$result = array();
+			
+			foreach($table as $key => $table_name){
+				
+				$columns = '';
+				
+				if($table_columns){
+					
+					$columns = "(" . $table_columns[$key] . ")";
+				
+				}
+				
+				$values = "(" . $column_values[$key] . ")";
+				
+				$query = "INSERT INTO " . $table_name . " " . $columns . " VALUES " . $values . "";
+				
+				$result[] = $this->sql_query($query, 'INSERT DATA');
+			}
+		}else{
+			
+			$columns = '';
+			
+			if($table_columns){
+					
+				$columns = "(" . $table_columns . ")";
+			
+			}
+			
+			$values = "(" . $column_values . ")";
+			
+			$query = "INSERT INTO " . $table . " " . $columns . " VALUES " . $values . "";
+			
+			$result  = $this->sql_query($query, 'INSERT DATA');
+			
+		}	
+		
+		if($response){
+		
+			return $result;
+		
+		}
+		
+	}
+	
 	public function rename_db($old_db_name, $new_db_name){
 		
 // 		$tables = array();
@@ -808,78 +870,6 @@ public function addDBSlashes(&$value){
 return $value = "`$value`";
 } 
 
-/**
-# insertData - insert data array to table
-*/
-
-	public  function insertRecords($table, $field, $value, $statement='') {
-
-		$query = "INSERT INTO $table ";
-
-		$fields = "";
-		$vals = "";
-
-		if(is_array($field) && is_array($value)){
-				
-			if(count($field) !== count($value)){
-
-				throw new Exception("Number of filelds and update values do not match.");
-
-			}
-				
-			$last = end($value);
-				
-			for($i=0;$i<count($fields);$i++){
-
-				if($fields[$i] == $last ){
-
-					$fields .= "".$fields[$i]." ";
-					$vals .= "'".$value[$i]."' ";
-
-				}else{
-					$fields .= "".$fields[$i].", ";
-					$vals .= "'".$value[$i]."', ";
-						
-				}
-
-			}
-			//			$query .= "($fields) VALUES ($vals)";
-			//			$query .= " WHERE $database_row = $reference_row";
-
-		}elseif(empty($field) && is_array($value)){
-				
-			$last = end(array_keys($value));
-				
-			foreach($value as $key=>$val){
-					
-				if($key == $last){
-					$fields .= "".$key." ";
-					$vals .= "'".$val."' ";
-						
-				}else{
-						
-					$fields .= "".$key.", ";
-					$vals .= "'".$val."', ";
-						
-				}
-					
-			}
-
-		}else{
-				
-			$fields .= $field;
-			$vals .=  $value;
-				
-		}
-
-		$query .= "($fields) VALUES ($vals) {$statement}";
-		//$query .= " WHERE $database_row = $reference_row";
-
-		//echo $query;
-		file_put_contents('log.txt', $query);
-		$this->sql_query($query, 'INSERT DATA');
-			
-	}
 
 /**
 # deleteData - delete data array to table
