@@ -740,9 +740,7 @@ class TIDEDatabase {
 	public  function insert_data($database=false, $table, $table_columns=false, $column_values, $statement=false, $response=true) {
 		
 		$this->set_db($database);
-		//INSERT INTO table_name VALUES (value1, value2, value3,...) 
-		//INSERT INTO table_name (column1, column2, column3,...) VALUES (value1, value2, value3,...) 
-		
+	
 		if(is_array($table)){
 				
 			$result = array();
@@ -788,6 +786,78 @@ class TIDEDatabase {
 		}
 		
 	}
+	
+
+	public  function delete_data($database=false, $table, $alias=false, $statement='', $response=false) {
+		
+		$this->set_db($database);
+		
+		if($is_array($table)){
+			
+			$result = array();
+			
+			foreach($table as $key => $table_name){
+				
+				$alias_table = '';
+				
+				if($alias){
+					
+					if(is_array($aliases)){
+						
+						$alias_table = $alias[$key] . " ";
+						
+					}else{
+						
+						$alias_table = $alias ." ";
+						
+					}
+				}
+				
+				$query = "DELETE " . $alias_table . "FROM ". $table_name ."  ".$statement[$key] . " ";
+				$result[] = $this->sql_query($query, 'DELETE DATA');
+			}
+			
+		}else{
+			
+			$alias_table = '';
+			
+			if($aliases){
+		
+				$alias_table = $alias ." ";
+			
+			}
+			
+			$query = "DELETE " . $aliases_table . "FROM ". $table ."  ".$statement . " ";
+			$result[] = $this->sql_query($query, 'DELETE DATA');
+			
+		}
+		
+		if($response){
+		
+			return $result;
+		
+		}
+	}
+	
+	public  function deleteRecords($table, $ref, $value) {
+	
+		//check if user exist in database
+		if(!$this->selectData("*", $table, " WHERE {$ref} = '{$value}'")){
+	
+			throw new Exception("Data do not exist.");
+	
+		}else{
+	
+			// if user do not exist trow exception exist else delete it from database
+	
+	
+			$query = "DELETE  FROM ". $table ." WHERE ". $ref ." = '". $value ."'";
+	
+			$this->sql_query($query, 'DELETE DATA');
+	
+		}
+	}
+	
 	
 	public function rename_db($old_db_name, $new_db_name){
 		
@@ -871,48 +941,7 @@ return $value = "`$value`";
 } 
 
 
-/**
-# deleteData - delete data array to table
-*/
-public  function deleteData($dataDelete, $database='') {
-	
-if(!empty($database)){
-		
-		 $this->dbname = $database;
-		 mysql_select_db($this->dbname, $this->connection);
-		 
-	}
-$tablesNamesList = $this->showTables_Fields($this->dbname);
 
-	foreach($dataDelete as $table=>$data){
-
-		if(in_array($data[0], $tablesNamesList)){
-			
-			$query = "DELETE  FROM ".$data[0]."  ".$data[1]." ";
-			$this->sql_query($query, 'DELETE DATA');
-		}
-	}
-
-}  
-
-	public  function deleteRecords($table, $ref, $value) {
-
-		//check if user exist in database
-		if(!$this->selectData("*", $table, " WHERE {$ref} = '{$value}'")){
-
-			throw new Exception("Data do not exist.");
-
-		}else{
-				
-			// if user do not exist trow exception exist else delete it from database
-
-
-			$query = "DELETE  FROM ". $table ." WHERE ". $ref ." = '". $value ."'";
-				
-			$this->sql_query($query, 'DELETE DATA');
-
-		}
-	}
 
 
 /**
